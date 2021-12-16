@@ -23,6 +23,5 @@ executable haskell-challenge1
         , aeson >=2.0.2.0
         , base >=4.16.0.0
         , bytestring
-        , containers
         , text
         , time

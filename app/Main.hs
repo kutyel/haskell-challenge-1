@@ -4,39 +4,40 @@
 
 module Main where
 
+import Control.Applicative (liftA2)
 import Data.Aeson (FromJSON (..), Result, ToJSON (..), Value (..), eitherDecodeFileStrict, object, (.:), (.=))
-import Data.Aeson.Types (fromJSON, prependFailure, typeMismatch)
-import qualified Data.Map as Map
+import Data.Aeson.Types (prependFailure, typeMismatch)
+import Data.List (group, sort)
 import Data.Text (Text)
-import Data.Time (UniversalTime, defaultTimeLocale, parseTimeM)
+import Data.Time.Calendar (Day, toGregorian)
 
 data Bio = Bio
   { bioGender :: Text,
     bioBirthday :: Text
   }
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq)
 
 data Person = Person
   { personName :: Name,
     personBio :: Bio,
     personTerms :: [Terms]
   }
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq)
 
 data Name = Name
   { nameLast :: Text,
     nameFirst :: Text
   }
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq)
 
 data Terms = Terms
-  { termsEnd :: Maybe UniversalTime,
-    termsStart :: Maybe UniversalTime,
+  { termsEnd :: Day,
+    termsStart :: Day,
     termsType :: Text,
     termsParty :: Text,
     termsState :: Text
   }
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq)
 
 instance FromJSON Bio where
   parseJSON (Object v) = do
@@ -65,8 +66,8 @@ instance FromJSON Name where
 
 instance FromJSON Terms where
   parseJSON (Object v) = do
-    termsEnd <- parseTimeM False defaultTimeLocale "%Y-%m-%d" <$> v .: "end"
-    termsStart <- parseTimeM False defaultTimeLocale "%Y-%m-%d" <$> v .: "start"
+    termsEnd <- v .: "end"
+    termsStart <- v .: "start"
     termsType <- v .: "type"
     termsParty <- v .: "party"
     termsState <- v .: "state"
@@ -74,9 +75,23 @@ instance FromJSON Terms where
   parseJSON invalid = do
     prependFailure "parsing Terms failed, " (typeMismatch "Object" invalid)
 
-query :: [Person] -> [Terms]
+getYear :: Day -> Integer
+getYear day =
+  let (year, _, _) = toGregorian day
+   in year
+
+query :: [Person] -> [(Integer, Int)]
 query =
-  filter (("rep" ==) . termsType)
+  map (liftA2 (,) head length)
+    . group
+    . sort
+    . concatMap
+      ( \term ->
+          [ (getYear (termsStart term))
+            .. (getYear (termsEnd term) - 1)
+          ]
+      )
+    . filter (("rep" ==) . termsType)
     . concatMap personTerms
     . filter (("F" ==) . bioGender . personBio)
 
@@ -85,4 +100,7 @@ main = do
   contents <- eitherDecodeFileStrict "db.json"
   case contents of
     Left err -> putStrLn err
-    Right people -> print (query people)
+    Right people ->
+      mapM_
+        (\(year, num) -> putStrLn $ show year ++ ": " ++ (take num $ repeat '#'))
+        (query people)
