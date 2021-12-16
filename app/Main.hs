@@ -1,30 +1,33 @@
-{-# language DuplicateRecordFields #-}
-{-# language RecordWildCards #-}
-{-# language OverloadedStrings #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Main where
 
+import Data.Aeson (FromJSON (..), Result, ToJSON (..), Value (..), eitherDecodeFileStrict, object, (.:), (.=))
+import Data.Aeson.Types (fromJSON, prependFailure, typeMismatch)
 import qualified Data.Map as Map
-import Data.Time (UniversalTime, defaultTimeLocale, parseTimeM)
-import Data.Aeson (ToJSON(..), FromJSON(..), Value(..), Result, (.:), (.=), object, eitherDecodeFileStrict)
-import Data.Aeson.Types (prependFailure, typeMismatch, fromJSON)
 import Data.Text (Text)
+import Data.Time (UniversalTime, defaultTimeLocale, parseTimeM)
 
 data Bio = Bio
-  { bioGender :: Text
-  , bioBirthday :: Text
-  } deriving (Show, Eq, Ord)
+  { bioGender :: Text,
+    bioBirthday :: Text
+  }
+  deriving (Show, Eq, Ord)
 
 data Person = Person
-  { personName :: Name
-  , personBio :: Bio
-  , persionTerms :: [Terms]
-  } deriving (Show, Eq, Ord)
+  { personName :: Name,
+    personBio :: Bio,
+    persionTerms :: [Terms]
+  }
+  deriving (Show, Eq, Ord)
 
 data Name = Name
-  { nameLast :: Text
-  , nameFirst :: Text
-  } deriving (Show, Eq, Ord)
+  { nameLast :: Text,
+    nameFirst :: Text
+  }
+  deriving (Show, Eq, Ord)
 
 {- FIXME: use this to parse the dates...
 > parseTimeM False defaultTimeLocale "%Y-%m-%d" "2016-10-20" :: Maybe UniversalTime
@@ -32,21 +35,21 @@ data Name = Name
 -}
 
 data Terms = Terms
-  { termsEnd :: Text -- Maybe UniversalTime
-  , termsType :: Text
-  , termsParty :: Text
-  , termsState :: Text
-  , termsStart :: Text -- Maybe UniversalTime
-  } deriving (Show, Eq, Ord)
+  { termsEnd :: Text, -- Maybe UniversalTime
+    termsType :: Text,
+    termsParty :: Text,
+    termsState :: Text,
+    termsStart :: Text -- Maybe UniversalTime
+  }
+  deriving (Show, Eq, Ord)
 
 instance FromJSON Bio where
   parseJSON (Object v) = do
     bioGender <- v .: "gender"
     bioBirthday <- v .: "birthday"
-    pure $ Bio{..}
+    pure $ Bio {..}
   parseJSON invalid = do
-    prependFailure "parsing Bio failed, "
-      (typeMismatch "Object" invalid)
+    prependFailure "parsing Bio failed, " (typeMismatch "Object" invalid)
 
 instance FromJSON Person where
   parseJSON (Object v) = do
@@ -55,8 +58,7 @@ instance FromJSON Person where
     persionTerms <- v .: "terms"
     pure $ Person {..}
   parseJSON invalid = do
-    prependFailure "parsing Person failed, "
-      (typeMismatch "Object" invalid)
+    prependFailure "parsing Person failed, " (typeMismatch "Object" invalid)
 
 instance FromJSON Name where
   parseJSON (Object v) = do
@@ -64,8 +66,7 @@ instance FromJSON Name where
     nameFirst <- v .: "first"
     pure $ Name {..}
   parseJSON invalid = do
-    prependFailure "parsing Name failed, "
-      (typeMismatch "Object" invalid)
+    prependFailure "parsing Name failed, " (typeMismatch "Object" invalid)
 
 instance FromJSON Terms where
   parseJSON (Object v) = do
@@ -76,15 +77,14 @@ instance FromJSON Terms where
     termsStart <- v .: "start"
     pure $ Terms {..}
   parseJSON invalid = do
-    prependFailure "parsing Terms failed, "
-      (typeMismatch "Object" invalid)
+    prependFailure "parsing Terms failed, " (typeMismatch "Object" invalid)
 
 query :: [Person] -> [Person]
-query = filter (("F" ==) . bioGender. personBio)
+query = filter (("F" ==) . bioGender . personBio)
 
 main :: IO ()
 main = do
-    contents <- eitherDecodeFileStrict "db.json"
-    case contents of
-        Left err -> putStrLn err
-        Right people -> print (query people)
+  contents <- eitherDecodeFileStrict "db.json"
+  case contents of
+    Left err -> putStrLn err
+    Right people -> print (query people)
