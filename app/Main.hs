@@ -1,34 +1,40 @@
-{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Main where
 
-import Control.Applicative (liftA2)
-import Data.Aeson (FromJSON (..), Result, ToJSON (..), Value (..), eitherDecodeFileStrict, object, (.:), (.=))
-import Data.Aeson.Types (prependFailure, typeMismatch)
+import Data.Aeson (FromJSON (..), eitherDecodeFileStrict)
 import Data.List (group, sort)
 import Data.Text (Text)
 import Data.Time.Calendar (Day, toGregorian)
+import Data.Tuple.Extra (fst3)
+import GHC.Generics (Generic)
+import Generics.Generic.Aeson
 
 data Bio = Bio
-  { bioGender :: Text,
-    bioBirthday :: Text
+  { gender :: Text,
+    birthday :: Text
   }
-  deriving (Show, Eq)
+  deriving (Generic, Show, Eq)
+
+instance FromJSON Bio where parseJSON = gparseJson
 
 data Person = Person
-  { personName :: Name,
-    personBio :: Bio,
-    personTerms :: [Terms]
+  { name :: Name,
+    bio :: Bio,
+    terms :: [Terms]
   }
-  deriving (Show, Eq)
+  deriving (Generic, Show, Eq)
+
+instance FromJSON Person where parseJSON = gparseJson
 
 data Name = Name
-  { nameLast :: Text,
-    nameFirst :: Text
+  { last :: Text,
+    first :: Text
   }
-  deriving (Show, Eq)
+  deriving (Generic, Show, Eq)
+
+instance FromJSON Name where parseJSON = gparseJson
 
 data Terms = Terms
   { termsEnd :: Day,
@@ -37,52 +43,19 @@ data Terms = Terms
     termsParty :: Text,
     termsState :: Text
   }
-  deriving (Show, Eq)
+  deriving (Generic, Show, Eq)
 
-instance FromJSON Bio where
-  parseJSON (Object v) = do
-    bioGender <- v .: "gender"
-    bioBirthday <- v .: "birthday"
-    pure $ Bio {..}
-  parseJSON invalid = do
-    prependFailure "parsing Bio failed, " (typeMismatch "Object" invalid)
+stripSettings :: Settings
+stripSettings = defaultSettings {stripPrefix = Just "terms"}
 
-instance FromJSON Person where
-  parseJSON (Object v) = do
-    personName <- v .: "name"
-    personBio <- v .: "bio"
-    personTerms <- v .: "terms"
-    pure $ Person {..}
-  parseJSON invalid = do
-    prependFailure "parsing Person failed, " (typeMismatch "Object" invalid)
-
-instance FromJSON Name where
-  parseJSON (Object v) = do
-    nameLast <- v .: "last"
-    nameFirst <- v .: "first"
-    pure $ Name {..}
-  parseJSON invalid = do
-    prependFailure "parsing Name failed, " (typeMismatch "Object" invalid)
-
-instance FromJSON Terms where
-  parseJSON (Object v) = do
-    termsEnd <- v .: "end"
-    termsStart <- v .: "start"
-    termsType <- v .: "type"
-    termsParty <- v .: "party"
-    termsState <- v .: "state"
-    pure $ Terms {..}
-  parseJSON invalid = do
-    prependFailure "parsing Terms failed, " (typeMismatch "Object" invalid)
+instance FromJSON Terms where parseJSON = gparseJsonWithSettings stripSettings
 
 getYear :: Day -> Integer
-getYear day =
-  let (year, _, _) = toGregorian day
-   in year
+getYear = fst3 . toGregorian
 
 query :: [Person] -> [(Integer, Int)]
 query =
-  map (liftA2 (,) head length)
+  map ((,) <$> head <*> length)
     . group
     . sort
     . concatMap
@@ -92,8 +65,8 @@ query =
           ]
       )
     . filter (("rep" ==) . termsType)
-    . concatMap personTerms
-    . filter (("F" ==) . bioGender . personBio)
+    . concatMap terms
+    . filter (("F" ==) . gender . bio)
 
 main :: IO ()
 main = do

@@ -1,0 +1,2 @@
+packages: haskell-challenge1.cabal
+allow-newer: base
