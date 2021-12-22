@@ -9,7 +9,7 @@ import Data.Text (Text)
 import Data.Time.Calendar (Day, toGregorian)
 import Data.Tuple.Extra (fst3)
 import GHC.Generics (Generic)
-import Generics.Generic.Aeson
+import Generics.Generic.Aeson (Settings, defaultSettings, gparseJson, gparseJsonWithSettings)
 
 data Bio = Bio
   { gender :: Text,
